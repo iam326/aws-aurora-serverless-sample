@@ -27,17 +27,17 @@ Globals:
     Timeout: 3
 
 Resources:
-  HelloWorldFunction:
+  TodoGetFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: hello_world/
+      CodeUri: src/
       Handler: app.lambda_handler
       Runtime: python3.7
       Events:
-        HelloWorld:
+        get:
           Type: Api
           Properties:
-            Path: /hello
+            Path: /todo/{id}
             Method: get
 
   VPC:
@@ -185,9 +185,8 @@ Resources:
       # PreferredMaintenanceWindow: Tue:19:05-Tue:19:35 # UTC
 
 Outputs:
-  HelloWorldApi:
-    Description: 'API Gateway endpoint URL for Prod stage for Hello World function'
-    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/'
+  TodoApi:
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
   DatabaseClusterArn:
     Value: !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseCluster}'
   DatabaseName:
