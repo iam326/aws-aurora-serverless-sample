@@ -2,6 +2,26 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Sample Aurora Serverless Template
 
+Parameters:
+  NamePrefix:
+    Type: String
+    Default: aws-aurora-sl-sample
+  VpcCidr:
+    Type: String
+    Default: '10.1.0.0/16'
+  PrivateSubnetACidr:
+    Type: String
+    Default: '10.1.10.0/24'
+  PrivateSubnetCCidr:
+    Type: String
+    Default: '10.1.20.0/24'
+  DBMasterUserName:
+    Type: String
+    Default: admin
+  DatabaseName:
+    Type: String
+    Default: todo
+
 Globals:
   Function:
     Timeout: 3
@@ -20,7 +40,157 @@ Resources:
             Path: /hello
             Method: get
 
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-vpc'
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Sub '${AWS::Region}a'
+      CidrBlock: !Ref PrivateSubnetACidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-private-subnet-a'
+
+  PrivateSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Sub '${AWS::Region}c'
+      CidrBlock: !Ref PrivateSubnetCCidr
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-private-subnet-c'
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-private-route-a'
+
+  PrivateRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${NamePrefix}-private-route-c'
+
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetC
+      RouteTableId: !Ref PrivateRouteTableC
+
+  DatabaseSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${NamePrefix}-database-secrets'
+      Description: Database auto-generated user password
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DBMasterUserName}"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 30
+        ExcludeCharacters: '"@/\'
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Allow MySQL (TCP 3306)
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          # CidrIp: who is this?
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Database subnet group
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetC
+
+  DatabaseClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: Database cluster parameter group
+      Family: aurora5.6
+      Parameters:
+        character_set_client: utf8mb4
+        character_set_connection: utf8mb4
+        character_set_database: utf8mb4
+        character_set_results: utf8mb4
+        character_set_server: utf8mb4
+        time_zone: Asia/Tokyo
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub '${NamePrefix}-database-cluster'
+      DBClusterParameterGroupName: !Ref DatabaseClusterParameterGroup
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      MasterUsername:
+        !Join [
+          '',
+          [
+            '{{resolve:secretsmanager:',
+            !Ref DatabaseSecret,
+            ':SecretString:username}}',
+          ],
+        ]
+      MasterUserPassword:
+        !Join [
+          '',
+          [
+            '{{resolve:secretsmanager:',
+            !Ref DatabaseSecret,
+            ':SecretString:password}}',
+          ],
+        ]
+      DatabaseName: !Ref DatabaseName
+      Engine: aurora
+      EngineMode: serverless
+      EngineVersion: 5.6.10a
+      BackupRetentionPeriod: 30
+      DeletionProtection: 'true'
+      ScalingConfiguration:
+        AutoPause: 'true'
+        MaxCapacity: 1
+        MinCapacity: 1
+        SecondsUntilAutoPause: 300
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroup
+      # 以下3点、コメントアウトを外すとstak errorになる
+      # Port: 3306
+      # PreferredBackupWindow: 18:25-18:55
+      # PreferredMaintenanceWindow: Tue:19:05-Tue:19:35 # UTC
+
 Outputs:
   HelloWorldApi:
     Description: 'API Gateway endpoint URL for Prod stage for Hello World function'
     Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/'
+  DatabaseClusterArn:
+    Value: !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseCluster}'
+  DatabaseName:
+    Value: !Ref DatabaseName
+  DatabaseSecretArn:
+    Value: !Ref DatabaseSecret
