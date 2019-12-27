@@ -7,7 +7,7 @@ def lambda_handler(event, context):
   todo_id = event['pathParameters']['id']
 
   sql = '''
-    SELECT * FROM todo WHERE id = :todo_id;
+    DELETE FROM todo WHERE id = :todo_id;
   '''
 
   params = [

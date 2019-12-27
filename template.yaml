@@ -27,19 +27,6 @@ Globals:
     Timeout: 3
 
 Resources:
-  TodoGetFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/
-      Handler: get.lambda_handler
-      Runtime: python3.7
-      Events:
-        get:
-          Type: Api
-          Properties:
-            Path: /todo/{id}
-            Method: get
-
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -184,12 +171,84 @@ Resources:
       # PreferredBackupWindow: 18:25-18:55
       # PreferredMaintenanceWindow: Tue:19:05-Tue:19:35 # UTC
 
+  TodoGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: get.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecret
+        - AmazonRDSDataFullAccess
+      Events:
+        get:
+          Type: Api
+          Properties:
+            Path: /todo/{id}
+            Method: get
+
+  TodoPostFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: post.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecret
+        - AmazonRDSDataFullAccess
+      Events:
+        post:
+          Type: Api
+          Properties:
+            Path: /todo
+            Method: post
+
+  TodoPatchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: patch.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecret
+        - AmazonRDSDataFullAccess
+      Events:
+        patch:
+          Type: Api
+          Properties:
+            Path: /todo/{id}
+            Method: patch
+
+  TodoDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: delete.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - AWSSecretsManagerGetSecretValuePolicy:
+            SecretArn: !Ref DatabaseSecret
+        - AmazonRDSDataFullAccess
+      Events:
+        delete:
+          Type: Api
+          Properties:
+            Path: /todo/{id}
+            Method: delete
+
 Outputs:
-  TodoApi:
-    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
   DatabaseClusterArn:
     Value: !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseCluster}'
   DatabaseName:
     Value: !Ref DatabaseName
   DatabaseSecretArn:
     Value: !Ref DatabaseSecret
+  TodoApi:
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'

@@ -5,12 +5,30 @@ from aws_utils import rds_execute_statement
 def lambda_handler(event, context):
 
   todo_id = event['pathParameters']['id']
+  body = json.loads(event['body'])
 
   sql = '''
-    SELECT * FROM todo WHERE id = :todo_id;
+    UPDATE
+      todo
+    SET
+      title = :title, body = :body
+    WHERE
+      id = :todo_id;
   '''
 
   params = [
+      {
+          'name': 'title',
+          'value': {
+                  'stringValue': f"{body['title']}"
+          }
+      },
+      {
+          'name': 'body',
+          'value': {
+                  'stringValue': f"{body['body']}"
+          }
+      },
       {
           'name': 'todo_id',
           'value': {
