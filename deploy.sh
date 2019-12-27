@@ -20,3 +20,9 @@ sam deploy \
   --capabilities CAPABILITY_IAM
 
 rm packaged.yaml
+
+DB_CLUSTER_IDENTIFIER="aws-aurora-sl-sample-database-cluster"
+aws rds modify-db-cluster \
+  --db-cluster-identifier ${DB_CLUSTER_IDENTIFIER} \
+  --enable-http-endpoint \
+  --apply-immediately
