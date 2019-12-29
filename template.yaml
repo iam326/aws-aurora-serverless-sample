@@ -5,7 +5,6 @@ Description: Sample Aurora Serverless Template
 Parameters:
   NamePrefix:
     Type: String
-    Default: aws-aurora-sl-sample
   VpcCidr:
     Type: String
     Default: '10.1.0.0/16'
@@ -15,6 +14,8 @@ Parameters:
   PrivateSubnetCCidr:
     Type: String
     Default: '10.1.20.0/24'
+  DatabaseClusterName:
+    Type: String
   DBMasterUserName:
     Type: String
     Default: admin
@@ -121,7 +122,7 @@ Resources:
   DatabaseCluster:
     Type: AWS::RDS::DBCluster
     Properties:
-      DBClusterIdentifier: !Sub '${NamePrefix}-database-cluster'
+      DBClusterIdentifier: !Ref DatabaseClusterName
       DBClusterParameterGroupName: !Ref DatabaseClusterParameterGroup
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
       MasterUsername:
@@ -158,6 +159,18 @@ Resources:
       # PreferredBackupWindow: 18:25-18:55
       # PreferredMaintenanceWindow: Tue:19:05-Tue:19:35 # UTC
 
+  DatabaseExecuteSqlPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action:
+              - 'rds-data:ExecuteSql'
+              - 'rds-data:ExecuteStatement'
+            Resource: !Sub 'arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseClusterName}'
+
   TodoGetFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -168,7 +181,7 @@ Resources:
         - CloudFormationDescribeStacksPolicy: {}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref DatabaseSecret
-        - AmazonRDSDataFullAccess
+        - !Ref DatabaseExecuteSqlPolicy
       Events:
         get:
           Type: Api
@@ -186,7 +199,7 @@ Resources:
         - CloudFormationDescribeStacksPolicy: {}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref DatabaseSecret
-        - AmazonRDSDataFullAccess
+        - !Ref DatabaseExecuteSqlPolicy
       Events:
         post:
           Type: Api
@@ -204,7 +217,7 @@ Resources:
         - CloudFormationDescribeStacksPolicy: {}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref DatabaseSecret
-        - AmazonRDSDataFullAccess
+        - !Ref DatabaseExecuteSqlPolicy
       Events:
         patch:
           Type: Api
@@ -222,7 +235,7 @@ Resources:
         - CloudFormationDescribeStacksPolicy: {}
         - AWSSecretsManagerGetSecretValuePolicy:
             SecretArn: !Ref DatabaseSecret
-        - AmazonRDSDataFullAccess
+        - !Ref DatabaseExecuteSqlPolicy
       Events:
         delete:
           Type: Api
