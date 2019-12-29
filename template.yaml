@@ -97,17 +97,6 @@ Resources:
         PasswordLength: 30
         ExcludeCharacters: '"@/\'
 
-  DatabaseSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      VpcId: !Ref VPC
-      GroupDescription: Allow MySQL (TCP 3306)
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          # CidrIp: who is this?
-
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -164,8 +153,6 @@ Resources:
         MaxCapacity: 1
         MinCapacity: 1
         SecondsUntilAutoPause: 300
-      VpcSecurityGroupIds:
-        - !Ref DatabaseSecurityGroup
       # 以下3点、コメントアウトを外すとstak errorになる
       # Port: 3306
       # PreferredBackupWindow: 18:25-18:55
